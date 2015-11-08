@@ -1,9 +1,12 @@
 *.class
 *.log
+log
+logs
+wordcloud-checkpoint
 
 # sbt specific
-.cache
-.history
+.cache/
+.history/
 .lib/
 dist/*
 target/
@@ -15,3 +18,12 @@ project/plugins/project/
 # Scala-IDE specific
 .scala_dependencies
 .worksheet
+
+# Idea specific
+.idea/
+.idea_modules/
+
+# Eclipse specific
+.classpath
+.project
+.settings

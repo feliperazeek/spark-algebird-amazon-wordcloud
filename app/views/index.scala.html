@@ -1,0 +1,32 @@
+@(refresh: Int)
+
+<html>
+  <head>
+    <title>Word Cloud</title>
+    <meta http-equiv="refresh" content="@refresh" />
+    <link rel="shortcut icon" type="image/png" href="@routes.Assets.versioned("images/favicon.ico")">
+    <script src="@routes.Assets.versioned("javascripts/d3.js")"></script>
+    <script src="@routes.Assets.versioned("javascripts/d3.layout.cloud.js")"></script>
+    <script src="@routes.Assets.versioned("javascripts/d3.wordcloud.js")"></script>
+  </head>
+  <body>
+    <div id='cloud'></div>
+    <script>
+      function httpGet(url) {
+        var http = new XMLHttpRequest();
+        http.open("GET", url, false);
+        http.send(null);
+        return JSON.parse(http.responseText);
+      }
+
+      d3.wordcloud()
+        .size([800, 400])
+        .selector('#cloud')
+        .words(httpGet("/wordcloud.json"))
+        .start();
+    </script>
+
+    <center><font face="Arial" size="1">This page automatically refreshes every @refresh second(s). If you are not seeing anything, it means no data is available yet.</font></center>
+
+  </body>
+</html>
