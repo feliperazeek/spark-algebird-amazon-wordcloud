@@ -39,21 +39,15 @@ package object nlp {
      */
     def words(): Seq[String] = {
       // TODO this can probably be optimized for example reducing the number of passes in the collection
-      val words = tokenize
+      tokenize
         .filter { w => w.length > 1 }
         .filterNot { w => StopWords contains w.toLowerCase }
         .flatMap { w => stem(w).toOption }
-
-      Logger info s"WORDS: ${words.sorted}"
-
-      words
     }
 
     lazy private[this] val tokenize: Seq[String] = {
       // TODO not sure it's the best idea to just ignore tokenization failures
-      val r = Try(tokenizer tokenize s).toOption.map(_.toList) getOrElse Nil
-      Logger info s"TOKENS: ${r.sorted}"
-      r
+      Try(tokenizer tokenize s).toOption.map(_.toList) getOrElse Nil
     }
 
     private def stem(s: String): Try[String] = Try {

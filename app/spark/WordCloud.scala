@@ -86,6 +86,7 @@ object WordCloud {
     // Ideally this would be a reliable receiver such as Kafka using Spark's direct api
     val stream = ssc.actorStream[String](Props[RouterActor], "WordCloud", storageLevel = StorageLevel.MEMORY_AND_DISK_SER)
 
+    // Extract - Get words from urls stream (http request, scrape, tokenize, filter stop words, stem)
     val tokens = stream
       .flatMap { url =>
         val description = (new URL(url)).productDescription().toOption.flatten
@@ -93,16 +94,15 @@ object WordCloud {
         description
       }
       .flatMap { d => d.description.words() }
-      .map { s =>
-        Logger.info(s"WORD: $s")
-        s -> monoid.create(s)
-      }
+      .map { s => s -> monoid.create(s) }
 
+    // Tranform
     val state = tokens
       .updateStateByKey(accumulate _) // I could potentially use dstream.window() if we wanted to do it over a specific time period
       .map(_._2)
       .reduce { (a, b) => monoid.plus(a, b) }
 
+    // Load
     state.foreachRDD { rdd =>
       if (rdd.count() != 0) {
         val m = rdd.first()

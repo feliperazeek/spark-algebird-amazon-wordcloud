@@ -40,7 +40,7 @@ bash simulateRequests.sh localhost 9000 url
 * Duplication check is happening on Redis, through a `Bloom Filter`, not on Spark. I made that decision because it allows the submit endpoint to return the app
 ropiate http status (400 in case url submitted is a duplicate). It also allows the system not to have these duplicates possibly in other parts of the system downstream (Kafka, HDFS, Spark checkpoint), potentially replicated more than once. So in a nutshell, better user experience and cheaper.
 
-* Kept Kafka out of it for the sake of simplicity but think it should be used in real life.
+* Kept Kafka out of it for the sake of simplicity but it's a good option for real life.
 
 * In this application, I am using an Akka actor as the receiver for Spark (see `app/spark/RouterActor.scala`). I am not using actors on the API endpoints because of it's untyped and it's more work to get setup. I find that composing `Futures` is simpler and much more elegant.
 
