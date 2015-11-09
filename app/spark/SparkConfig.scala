@@ -54,6 +54,9 @@ object SparkConfig {
     })
 
     wordCloud.start
+
+    // Yikes (just for demo)
+    Thread sleep 2000
   }
 
   def stop() = {

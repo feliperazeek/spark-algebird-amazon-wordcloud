@@ -27,7 +27,7 @@ package object nlp {
 
   private[this] val StopWords = Seq("a", "all", "am", "an", "and", "any", "are", "aren't",
     "as", "at", "be", "because", "been", "to", "from", "by",
-    "can", "can't", "do", "don't", "didn't", "did", "the", "is", "'", "or", "+", ".", "it", ",", "\"", "!")
+    "can", "can't", "do", "don't", "didn't", "did", "the", "is", "'", "or", "+", ".", "it", ",", "\"", "!", "in", "for")
 
   // TODO Use a more user-friendly stemmer so upgrading doesn't become upgrad for example
   lazy private[this] val stemmer = new opennlp.tools.stemmer.PorterStemmer

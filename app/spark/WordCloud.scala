@@ -52,7 +52,6 @@ object WordCloud {
   lazy val RedisKey = StringToChannelBuffer(config.string("redis.key").mandatory)
 
   lazy val TopK = config.int("wordcloud.count") or 25
-  lazy val Capacity = config.int("wordcloud.capacity") or 1000
 
   private[this] val CheckpointPath = "./wordcloud-checkpoint"
 
@@ -69,8 +68,10 @@ object WordCloud {
   def apply() {
     Logger info s"Starting Spark Job: WordCloud"
 
-    ssc.start()
-    ssc.awaitTermination()
+    Try {
+      ssc.start()
+      ssc.awaitTermination()
+    }
   }
 
   def newContext() = {
@@ -78,15 +79,19 @@ object WordCloud {
     val ssc = new StreamingContext(sparkConf, Seconds(5))
     ssc.checkpoint(CheckpointPath)
 
-    implicit val monoid = TopNCMS.monoid[String](eps = 0.01, delta = 1E-3, seed = 1, heavyHittersN = Capacity)
+    // eps = error for each item in terms of total count (absError ~ totalCount * eps)
+    // delta = probability that the error is actually higher than that for a given item
+    // seed = used to build the hash functions
+    // heavyHittersPct is the percent of the total count an item needs to be a heavy hitter
+    implicit val monoid = TopPctCMS.monoid[String](eps = 0.01, delta = 0.01, seed = 314, heavyHittersPct = 0.0001)
 
-    def accumulate(values: Seq[TopCMS[String]], state: Option[TopCMS[String]])(implicit m: TopNCMSMonoid[String]) =
+    def accumulate(values: Seq[TopCMS[String]], state: Option[TopCMS[String]])(implicit m: Monoid[TopCMS[String]]) =
       m.sumOption(state.toSeq ++ values)
 
     // Ideally this would be a reliable receiver such as Kafka using Spark's direct api
     val stream = ssc.actorStream[String](Props[RouterActor], "WordCloud", storageLevel = StorageLevel.MEMORY_AND_DISK_SER)
 
-    // Extract - Get words from urls stream (http request, scrape, tokenize, filter stop words, stem)
+    // Get words from urls stream (http request, scrape, tokenize, filter stop words, stem)
     val tokens = stream
       .flatMap { url =>
         val description = (new URL(url)).productDescription().toOption.flatten
@@ -96,13 +101,12 @@ object WordCloud {
       .flatMap { d => d.description.words() }
       .map { s => s -> monoid.create(s) }
 
-    // Tranform
     val state = tokens
       .updateStateByKey(accumulate _) // I could potentially use dstream.window() if we wanted to do it over a specific time period
       .map(_._2)
-      .reduce { (a, b) => monoid.plus(a, b) }
+      .reduce(_ ++ _)
 
-    // Load
+    // Load topK into Redis
     state.foreachRDD { rdd =>
       if (rdd.count() != 0) {
         val m = rdd.first()
@@ -112,9 +116,8 @@ object WordCloud {
           .map { id =>
             (id, m.frequency(id).estimate)
           }
-          .toSeq
-          .sortBy(_._2)
-          .reverse
+          .toList
+          .sortBy { case (_, count) => -count }
           .slice(0, TopK)
           .map { case (word, count) => (Injection[String, ChannelBuffer](word) -> count.toDouble) }
 
@@ -133,7 +136,7 @@ object WordCloud {
       // Doing a sleep to try to avoid this bug: https://issues.apache.org/jira/browse/SPARK-11104
       Thread sleep 2000
 
-      ssc.stop(stopSparkContext = true, stopGracefully = true)
+      ssc.stop(stopSparkContext = true)
       ssc.awaitTermination()
       Logger.info("Done!")
     }
