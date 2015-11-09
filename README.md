@@ -41,7 +41,7 @@ bash simulateRequests.sh localhost 9000 url
 
 * Duplication check is happening on Redis, through a `Bloom Filter`, not on Spark. I made that decision because it allows the submit endpoint to provide an imediate feedback when a duplicate url is submitted (http status 400). It also allows the system not to store these duplicates downstream (Kafka, HDFS, Spark checkpoint), most likely replicated in multiple replicas. So better user experience and cheaper.
 
-* Kafka is a good option for a reliable Spark receiver in real life but kept it out for the sake of simplicity of this demo.
+* Kafka is a good option for a reliable Spark receiver in real life but kept it out for the sake of simplicity of this demo. 
 
 * In this application, I am using an Akka actor as the receiver for Spark (see [app/spark/RouterActor.scala](https://github.com/feliperazeek/spark-algebird-amazon-wordcloud/blob/master/app/spark/RouterActor.scala)), events are being published through Akka's event bus. I am not using actors on the read API endpoints because actors are untyped and they also require more boilerplate than standard Scala futures. For read endpoints, Scala futures are simpler and more elegant.
 
@@ -63,7 +63,7 @@ bash simulateRequests.sh localhost 9000 url
   * Not using `PriorityQueue` because I needed the frequency.
   * `SketchMap` is slower than `TopCMS` (`0.3k writes/s` compared to `65k writes/s`).
   * `TopNCMS` computes heavy hitters incorrectly when combining instances with `++`, see [issue](https://github.com/twitter/algebird/issues/353) for more details. But it's potentially a pretty good option.
-  * Since `TopPctCMS` doesn't have the same issue that `TopPctCMS` has, that's what I decided to go with.
+  * Since `TopPctCMS` doesn't have the same issue that `TopNCMS` has, that's what I decided to go with.
   * Here's you can find some really good information on the different alternatives:
     * https://github.com/twitter/algebird/issues/360
     * http://twitter.github.io/algebird/index.html#com.twitter.algebird.TopNCMSMonoid
@@ -75,6 +75,6 @@ bash simulateRequests.sh localhost 9000 url
 ## Improvements/Brainstorm
 
 * Unfortunately sometimes application deadlocks during shutdown (see https://issues.apache.org/jira/browse/SPARK-11104). Apparently it's a bug that will be fixed in the very next minor release (1.5.2). In that case `kill -9 <PID>` is required (shame shame shame :<).
-* We could use circuit breaker.
-* We could increase data locality using a hasher for Spark.
+* We could use circuit breaker to fail fast in case Redis is down for example.
+* We could increase data locality if needed using a partitioner on Spark.
 
