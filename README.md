@@ -37,9 +37,9 @@ cd bin
 bash simulateRequests.sh localhost 9000 url
 ```
 
-## Design Decisions
+## Design Decisions/Tradeoffs
 
-* Duplication check is happening on Redis, through a `Bloom Filter`, not on Spark. I made that decision because it allows the submit endpoint to provide an imediate feedback when a duplicate url is submitted (http status 400). It also allows the system not to store these duplicates downstream (Kafka, HDFS, Spark checkpoint), most likely replicated in multiple replicas. So better user experience and cheaper.
+* Duplication check is happening on Redis, through a `Bloom Filter`, not on Spark. I made that decision because it allows the submit endpoint to provide an imediate feedback when a duplicate url is submitted (http status 400). It also allows the system not to store these duplicates downstream (Kafka, HDFS, Spark checkpoint), most likely replicated in multiple replicas. So better user experience and cheaper. For the sake of simplicity of this sample app, there's no ack in place, so it's possible an URL got added to the bloom filter and not get processed correctly. In real life, we would need something more sophisticated to make sure that data was processed before being added to the bloom filter.
 
 * Kafka is a good option for a reliable Spark receiver in real life but kept it out for the sake of simplicity of this demo. 
 
@@ -72,9 +72,11 @@ bash simulateRequests.sh localhost 9000 url
 
 * I am using `Play Framework` because I knew I could easily add visualization of the Word Cloud through this [project](https://github.com/jasondavies/d3-cloud). It's always nice, but not always possible unfortunately, to visualize data in its final form to get a better feeling of the user experience. I really like the productivity aspect of it as well, a lot of things just come ready out of the box such as integration with `sbt-native-packager`, `typesafe-config`, etc. `Spray` would also be a fine option.
 
-## Improvements/Brainstorm
+## Warnings
 
 * Unfortunately sometimes application deadlocks during shutdown (see https://issues.apache.org/jira/browse/SPARK-11104). Apparently it's a bug that will be fixed in the very next minor release (1.5.2). In that case `kill -9 <PID>` is required (shame shame shame :<).
-* We could use circuit breaker to fail fast in case Redis is down for example.
-* We could increase data locality if needed using a partitioner on Spark.
+* Sometimes calls to Amazon get blocked, which cause the URL to be submitted successfully but no data to be displayed on Word Cloud, you will see something in the logs:
+```
+application - URL: http://www.amazon.com/gp/product/B00TSUGXKE - Product Description: None
+```
 

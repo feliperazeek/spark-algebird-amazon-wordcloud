@@ -103,6 +103,9 @@ class Application extends Controller {
           mailman deliver new URL(url)
 
           // Mark as read on Redis-backed Bloom Filter
+          // For the sake of simplicity it works being here, on a real application we would probably
+          // need something more sophisticated which guaranteed that the URL got processed
+          // correctly before being added to the bloom filter.
           if (CheckDuplicates) client.setBit(key, offset = 0, value = 1)
 
           Ok("The url has been submitted successfully!")
